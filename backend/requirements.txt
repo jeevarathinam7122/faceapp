@@ -12,4 +12,4 @@ opencv-python-headless==4.7.0.72
 pillow==9.5.0
 python-dotenv==1.0.1
 python-jose[cryptography]==3.3.0
-tensorflow==2.10.0
+tensorflow==2.15.0
