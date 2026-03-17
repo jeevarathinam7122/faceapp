@@ -1,0 +1,8 @@
+{
+  "opencv": "FAILED - Face could not be detected in numpy array.Please confirm that the picture is a face photo or consider to set enforce_detection param to False.",
+  "mtcnn": "FAILED - Face could not be detected in numpy array.Please confirm that the picture is a face photo or consider to set enforce_detection param to False.",
+  "retinaface": "SUCCESS - 1 faces. Bbox: {'x': 324, 'y': 282, 'w': 541, 'h': 711, 'left_eye': (746, 532), 'right_eye': (485, 501), 'nose': (619, 605), 'mouth_left': (712, 787), 'mouth_right': (483, 760)}",
+  "ssd": "SUCCESS - 1 faces. Bbox: {'x': 360, 'y': 266, 'w': 488, 'h': 694, 'left_eye': None, 'right_eye': None}",
+  "yunet": "FAILED - Face could not be detected in numpy array.Please confirm that the picture is a face photo or consider to set enforce_detection param to False.",
+  "centerface": "SUCCESS - 1 faces. Bbox: {'x': 347, 'y': 354, 'w': 372, 'h': 517, 'left_eye': (668, 519), 'right_eye': (471, 523)}"
+}

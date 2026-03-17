@@ -1,0 +1,122 @@
+{
+  "2c059ca9-f023-4bf9-8844-95878a128201.jpeg": {
+    "num_faces": 1,
+    "glasses": [
+      false
+    ],
+    "bbox": [
+      {
+        "x": 539,
+        "y": 437,
+        "w": 117,
+        "h": 141,
+        "left_eye": [
+          596,
+          488
+        ],
+        "right_eye": [
+          556,
+          505
+        ]
+      }
+    ]
+  },
+  "51091a77-799c-499a-8708-0034348a28e4.jpg": {
+    "num_faces": 1,
+    "glasses": [
+      true
+    ],
+    "bbox": [
+      {
+        "x": 0,
+        "y": 0,
+        "w": 959,
+        "h": 1279,
+        "left_eye": null,
+        "right_eye": null
+      }
+    ]
+  },
+  "58471134-508e-43c6-9b22-96be34a93fa3.jpg": {
+    "num_faces": 1,
+    "glasses": [
+      false
+    ],
+    "bbox": [
+      {
+        "x": 293,
+        "y": 300,
+        "w": 584,
+        "h": 763,
+        "left_eye": [
+          720,
+          589
+        ],
+        "right_eye": [
+          444,
+          584
+        ]
+      }
+    ]
+  },
+  "74ee9d7a-1965-41ee-b3c2-f826e7a9ba74.jpg": {
+    "num_faces": 1,
+    "glasses": [
+      false
+    ],
+    "bbox": [
+      {
+        "x": 682,
+        "y": 126,
+        "w": 234,
+        "h": 358,
+        "left_eye": [
+          878,
+          263
+        ],
+        "right_eye": [
+          806,
+          276
+        ]
+      }
+    ]
+  },
+  "aa962771-594d-4a36-8519-acbdf139e30d.jpeg": {
+    "num_faces": 1,
+    "glasses": [
+      false
+    ],
+    "bbox": [
+      {
+        "x": 520,
+        "y": 183,
+        "w": 185,
+        "h": 220,
+        "left_eye": [
+          651,
+          257
+        ],
+        "right_eye": [
+          568,
+          258
+        ]
+      }
+    ]
+  },
+  "b19a3497-ed65-446b-a265-f8e5aefdb8b2.jpeg": {
+    "num_faces": 1,
+    "glasses": [
+      true
+    ],
+    "bbox": [
+      {
+        "x": 0,
+        "y": 0,
+        "w": 1199,
+        "h": 1599,
+        "left_eye": null,
+        "right_eye": null
+      }
+    ]
+  }
+}

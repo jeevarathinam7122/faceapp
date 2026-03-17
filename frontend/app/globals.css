@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tailwind v4 Theme — Sky Blue Palette
+   Generates utilities: bg-background, text-primary, border-border, etc.
+───────────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-background: hsl(204 100% 97%);
+  --color-foreground: hsl(213 50% 15%);
+
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(213 50% 15%);
+
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(213 50% 15%);
+
+  --color-primary: hsl(199 89% 42%);
+  --color-primary-foreground: hsl(0 0% 100%);
+
+  --color-secondary: hsl(199 70% 88%);
+  --color-secondary-foreground: hsl(213 50% 20%);
+
+  --color-muted: hsl(204 60% 94%);
+  --color-muted-foreground: hsl(213 25% 50%);
+
+  --color-accent: hsl(199 80% 92%);
+  --color-accent-foreground: hsl(199 89% 30%);
+
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  --color-border: hsl(199 50% 88%);
+  --color-input: hsl(199 50% 92%);
+  --color-ring: hsl(199 89% 42%);
+
+  /* Border radius scale */
+  --radius-sm: calc(0.75rem - 4px);
+  --radius-md: calc(0.75rem - 2px);
+  --radius-lg: 0.75rem;
+  --radius-xl: calc(0.75rem + 4px);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ShadCN HSL CSS variables (used inside ShadCN component internals)
+───────────────────────────────────────────────────────────────────────────── */
+:root {
+  --background: 204 100% 97%;
+  --foreground: 213 50% 15%;
+  --card: 0 0% 100%;
+  --card-foreground: 213 50% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 213 50% 15%;
+  --primary: 199 89% 42%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 199 70% 88%;
+  --secondary-foreground: 213 50% 20%;
+  --muted: 204 60% 94%;
+  --muted-foreground: 213 25% 50%;
+  --accent: 199 80% 92%;
+  --accent-foreground: 199 89% 30%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 199 50% 88%;
+  --input: 199 50% 92%;
+  --ring: 199 89% 42%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 215 40% 8%;
+  --foreground: 210 60% 95%;
+  --card: 215 35% 12%;
+  --card-foreground: 210 60% 95%;
+  --popover: 215 35% 12%;
+  --popover-foreground: 210 60% 95%;
+  --primary: 199 89% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 30% 20%;
+  --secondary-foreground: 210 60% 90%;
+  --muted: 215 30% 18%;
+  --muted-foreground: 215 20% 60%;
+  --accent: 215 30% 20%;
+  --accent-foreground: 210 60% 90%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 215 30% 20%;
+  --input: 215 30% 20%;
+  --ring: 199 89% 48%;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Base Element Styles
+───────────────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  border-color: hsl(var(--border));
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  background-image:
+    radial-gradient(ellipse at top left, hsl(199 89% 75% / 0.3) 0%, transparent 55%),
+    radial-gradient(ellipse at bottom right, hsl(204 100% 80% / 0.2) 0%, transparent 55%),
+    linear-gradient(160deg, hsl(204 100% 95%) 0%, hsl(210 100% 98%) 50%, hsl(199 80% 96%) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Glassmorphism Card
+───────────────────────────────────────────────────────────────────────────── */
+.glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(186, 230, 253, 0.55);
+  box-shadow: 0 8px 32px rgba(14, 165, 233, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Custom Sky Scrollbar
+───────────────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(204 60% 94%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(199 70% 75%);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(199 89% 48%);
+}
