@@ -53,33 +53,26 @@ async def scan_face(
             print(f"DEBUG: load_image_file failed: {e}", flush=True)
             return JSONResponse(status_code=400, content={"face_detected": False, "message": "Invalid image file."})
 
-        # 1.5 Validate Face Direction
-        if angle:
-            is_valid_dir = await asyncio.to_thread(face_utils.validate_face_direction, image_np, angle)
-            if not is_valid_dir:
+        # 1.5 Process single face (Detect, Validate Angle, Compute Embedding)
+        print("DEBUG: Processing face in a single pass...", flush=True)
+        try:
+            res = await asyncio.to_thread(face_utils.process_single_face, image_np, angle)
+            if not res["is_valid_dir"]:
                 return {
                     "face_detected": False,
                     "already_registered": False,
                     "embedding": None,
-                    "message": f"Incorrect angle detected. Please provide a clear '{angle}' view of your face."
+                    "lower_embedding": None,
+                    "message": res["error"] or f"Incorrect angle detected for {angle}."
                 }
-
-        # 2. Get Embedding (Run in threadpool to avoid blocking async loop)
-        print(f"DEBUG: calling get_face_encoding...", flush=True)
-        try:
-            # DeepFace is synchronous and heavy. Running it in the main async loop blocks
-            # the server heartbeat, causing timeouts/network errors.
-            # We must offload it to a thread.
-            encoding = await asyncio.to_thread(face_utils.get_face_encoding, image_np)
-            lower_encoding = await asyncio.to_thread(face_utils.get_lower_face_encoding, image_np)
-            print(f"DEBUG: get_face_encoding returned: {type(encoding)}", flush=True)
-            print(f"DEBUG: get_lower_face_encoding returned: {type(lower_encoding)}", flush=True)
+            encoding = res["encoding"]
+            lower_encoding = res["lower_encoding"]
         except Exception as e:
-            print(f"DEBUG: get_face_encoding CRASHED: {e}", flush=True)
+            print(f"DEBUG: process_single_face CRASHED: {e}", flush=True)
             return JSONResponse(status_code=500, content={"face_detected": False, "message": f"AI Error: {str(e)}"})
 
         if encoding is None:
-            print("DEBUG: No face detected.", flush=True)
+            print("DEBUG: No face detected or could not encode.", flush=True)
             return {
                 "face_detected": False,
                 "already_registered": False,
@@ -263,21 +256,21 @@ async def register(
         contents = await upload_file.read()
         image_np = face_utils.load_image_file(contents)
 
-        # 1. Validate angle. Not mirrored anymore since frontend fix.
-        is_valid_dir = await asyncio.to_thread(face_utils.validate_face_direction, image_np, label, False)
-        if not is_valid_dir:
-            raise HTTPException(status_code=400, detail=f"Incorrect angle detected for the {label} picture. Please provide a clear '{label}' view of your face.")
+        # Detect face, validate angle, get embedding
+        res = await asyncio.to_thread(face_utils.process_single_face, image_np, label, False)
+        if not res["is_valid_dir"]:
+            raise HTTPException(status_code=400, detail=res["error"] or f"Incorrect angle detected for the {label} picture. Please provide a clear '{label}' view of your face.")
 
-        if label == "front":
-            front_np_for_lower = image_np
-
-        # Offload encoding to thread pool
-        encoding = await asyncio.to_thread(face_utils.get_face_encoding, image_np)
+        encoding = res["encoding"]
         if encoding is None:
             raise HTTPException(
                 status_code=400,
-                detail=f"No face detected in the {label} image. Please ensure your face is clearly visible."
+                detail=res["error"] or f"No face detected in the {label} image. Please ensure your face is clearly visible."
             )
+            
+        if label == "front":
+            front_np_for_lower = image_np
+            
         encodings.append(encoding)
 
         # Save the photo immediately while bytes are in memory
@@ -391,22 +384,21 @@ async def add_face_angle(
     contents = await file.read()
     image_np = face_utils.load_image_file(contents)
 
-    # Extract the face embedding
-    encoding = await asyncio.to_thread(face_utils.get_face_encoding, image_np)
+    # Validate angle if provided and extract embedding in one pass
+    expected_angle = angle if angle in ["front", "left", "right"] else None
+    res = await asyncio.to_thread(face_utils.process_single_face, image_np, expected_angle, False)
+    if not res["is_valid_dir"]:
+        raise HTTPException(
+            status_code=400,
+            detail=res["error"] or f"Incorrect angle detected. Please provide a clear '{angle}' view of your face."
+        )
+
+    encoding = res["encoding"]
     if encoding is None:
         raise HTTPException(
             status_code=400,
             detail="No face detected in the image. Please upload a clear photo of your face."
         )
-
-    # Validate angle if provided
-    if angle and angle in ["front", "left", "right"]:
-        is_valid_dir = await asyncio.to_thread(face_utils.validate_face_direction, image_np, angle, False)
-        if not is_valid_dir:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Incorrect angle detected. Please provide a clear '{angle}' view of your face."
-            )
 
     # Safety check: make sure this face actually belongs to the current user
     # (prevent them from accidentally adding someone else's face to their profile)

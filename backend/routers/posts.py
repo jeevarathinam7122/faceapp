@@ -103,12 +103,6 @@ async def upload_post(
                 if valid_encs:
                     user_min_dist = min(cosine_dist(full_emb, enc) for enc in valid_encs)
 
-            enhanced_emb = face_data.get("enhanced_embedding")
-            if enhanced_emb:
-                valid_encs = [enc for enc in stored_encs[:3] if enc]
-                if valid_encs:
-                    enh_dist = min(cosine_dist(enhanced_emb, enc) for enc in valid_encs)
-                    user_min_dist = min(user_min_dist, enh_dist)
 
             if has_glasses and lower_emb and len(stored_encs) > 3:
                 l_enc = stored_encs[3]
@@ -173,19 +167,62 @@ async def upload_post(
 
 
 
-@router.get("/", response_model=List[schemas.Post])
-def get_feed(db: Session = Depends(get_db)):
-    return db.query(models.Post).filter(models.Post.is_active == True).order_by(models.Post.id.desc()).all()
+from sqlalchemy.orm import selectinload
+from fastapi.security import OAuth2PasswordBearer
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="auth/token", auto_error=False)
 
-@router.get("/me", response_model=List[schemas.Post])
+def get_current_user_optional(token: str = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)):
+    if not token: return None
+    try:
+        payload = auth.jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
+        username: str = payload.get("sub")
+        if not username: return None
+        return db.query(models.User).filter(models.User.username == username).first()
+    except auth.JWTError:
+        return None
+
+def _format_post_response(posts, current_user):
+    res = []
+    for p in posts:
+        liked = False
+        if current_user:
+            liked = any(l.user_id == current_user.id for l in p.likes)
+        res.append({
+            "id": p.id,
+            "uploader_id": p.uploader_id,
+            "uploader": p.uploader,
+            "image_url": p.image_url,
+            "is_active": p.is_active,
+            "created_at": p.created_at,
+            "like_count": len(p.likes),
+            "comment_count": len(p.comments),
+            "liked_by_user": liked
+        })
+    return res
+
+@router.get("/", response_model=List[schemas.PostResponse])
+def get_feed(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user_optional)):
+    posts = db.query(models.Post).options(
+        selectinload(models.Post.likes),
+        selectinload(models.Post.comments),
+        selectinload(models.Post.uploader)
+    ).filter(models.Post.is_active == True).order_by(models.Post.id.desc()).all()
+    return _format_post_response(posts, current_user)
+
+@router.get("/me", response_model=List[schemas.PostResponse])
 def get_my_posts(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return db.query(models.Post).filter(
+    posts = db.query(models.Post).options(
+        selectinload(models.Post.likes),
+        selectinload(models.Post.comments),
+        selectinload(models.Post.uploader)
+    ).filter(
         models.Post.uploader_id == current_user.id,
         models.Post.is_active == True
     ).order_by(models.Post.id.desc()).all()
+    return _format_post_response(posts, current_user)
 
 @router.delete("/{post_id}")
 def delete_post(

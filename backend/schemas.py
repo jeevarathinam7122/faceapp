@@ -33,6 +33,11 @@ class Post(PostBase):
     class Config:
         orm_mode = True
 
+class PostResponse(Post):
+    like_count: int = 0
+    comment_count: int = 0
+    liked_by_user: bool = False
+
 class PermissionRequestBase(BaseModel):
     post_id: int
     tagged_user_id: int

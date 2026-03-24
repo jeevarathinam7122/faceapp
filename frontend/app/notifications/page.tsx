@@ -95,9 +95,10 @@ export default function NotificationsPage() {
 
     // Persist seen IDs into localStorage so Navbar clears the dot
     const markAsSeen = (inboxIds: string[], sentKeys: string[]) => {
-        const existing: string[] = JSON.parse(localStorage.getItem("seenNotifIds") || "[]")
+        const username = localStorage.getItem("username") || "unknown"
+        const existing: string[] = JSON.parse(localStorage.getItem(`seenNotifIds_${username}`) || "[]")
         const merged = Array.from(new Set([...existing, ...inboxIds, ...sentKeys]))
-        localStorage.setItem("seenNotifIds", JSON.stringify(merged))
+        localStorage.setItem(`seenNotifIds_${username}`, JSON.stringify(merged))
     }
 
     const handleAction = async (id: number, action: "approve" | "deny") => {

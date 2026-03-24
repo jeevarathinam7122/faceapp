@@ -51,6 +51,75 @@ def _to_bgr(image_np):
 
 # ─────────────────────── Face encoding (for registration) ────────────────────
 
+def process_single_face(image_np, expected_angle: str = None, is_mirrored: bool = False):
+    """
+    Optimized face processing: Extracts the face once. 
+    Validates angle from landmarks. Returns full and lower face embeddings.
+    """
+    DeepFace = _get_deepface()
+    image_bgr = _to_bgr(image_np)
+    
+    try:
+        res = DeepFace.extract_faces(
+            img_path=image_bgr,
+            detector_backend=DETECTOR_BACKEND,
+            enforce_detection=True,
+            align=True
+        )
+    except Exception as e:
+        return {"is_valid_dir": False, "error": "No face detected in the image.", "encoding": None, "lower_encoding": None}
+        
+    if not res:
+        return {"is_valid_dir": False, "error": "No face detected in the image.", "encoding": None, "lower_encoding": None}
+
+    # Pick largest face
+    res.sort(key=lambda x: x["facial_area"]["w"] * x["facial_area"]["h"], reverse=True)
+    best_face = res[0]
+    fa = best_face['facial_area']
+    face_img = best_face['face']  # Aligned crop 
+
+    is_valid_dir = True
+    error_msg = None
+    if expected_angle and expected_angle in ["front", "left", "right"]:
+        le = fa.get("left_eye")
+        re = fa.get("right_eye")
+        if not le or not re:
+            is_valid_dir, error_msg = False, "Could not detect eyes to verify facial angle."
+        else:
+            x, w = fa['x'], fa['w']
+            eye_cx = (le[0] + re[0]) / 2  
+            box_cx = x + w / 2
+            offset = (eye_cx - box_cx) / w
+            
+            if expected_angle == "front":
+                is_valid_dir = abs(offset) < 0.12
+            elif expected_angle == "left":
+                is_valid_dir = offset > 0.03 if is_mirrored else offset < -0.03
+            elif expected_angle == "right":
+                is_valid_dir = offset < -0.03 if is_mirrored else offset > 0.03
+
+            if not is_valid_dir:
+                error_msg = f"Incorrect angle detected. Please provide a clear '{expected_angle}' view of your face."
+    
+    if not is_valid_dir:
+        return {"is_valid_dir": False, "error": error_msg, "encoding": None, "lower_encoding": None}
+
+    if face_img.dtype in [np.float32, np.float64] and face_img.max() <= 1.0:
+        face_img = (face_img * 255).astype(np.uint8)
+    face_bgr = _to_bgr(face_img)
+
+    try:
+        rep = DeepFace.represent(img_path=face_bgr, model_name=RECOGNITION_MODEL, detector_backend="skip")
+        encoding = rep[0]["embedding"] if rep else None
+    except Exception:
+        encoding = None
+
+    if not encoding:
+        return {"is_valid_dir": True, "error": "Could not extract face embedding.", "encoding": None, "lower_encoding": None}
+
+    lower_encoding = get_lower_face_encoding(image_np, face_box=fa)
+    return {"is_valid_dir": True, "error": None, "encoding": encoding, "lower_encoding": lower_encoding}
+
 def get_face_encoding(image_np):
     """
     Returns the 512-D Facenet512 embedding for the most prominent face found.
@@ -271,43 +340,11 @@ def _deduplicate(results: list) -> list:
     return kept
 
 
-def _enhance_for_detection(image_bgr: np.ndarray) -> tuple[np.ndarray, float]:
-    """
-    Apply CLAHE contrast enhancement + upscaling to improve detection of faces in:
-      - Outdoor / uneven lighting photos
-      - Underexposed or overexposed shots
-      - Far-away faces (person is small in the full frame)
-    Returns (enhanced_image, scale_factor)
-    """
-    h, w = image_bgr.shape[:2]
-    scale = 1.0
-    # Upscale small images so the face detector can find tiny faces
-    if min(h, w) < 640:
-        scale = 640 / min(h, w)
-        new_w, new_h = int(w * scale), int(h * scale)
-        image_bgr = cv2.resize(image_bgr, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
-
-    # Aggressive CLAHE on L channel of LAB to shatter harsh outdoor shadows
-    lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2LAB)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-    lab[:, :, 0] = clahe.apply(lab[:, :, 0])
-    enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-    return enhanced, scale
-
-
 def get_all_face_data(image_np: np.ndarray) -> list:
     """
-    4-pass face detection to catch ALL faces including:
-      - Group photos (multiple people)
-      - Faces wearing dark glasses / occlusions
-      - Side / extreme profile angles
-      - Far-away outdoor faces (small relative to image size)
-      - AI-generated or heavily processed face images
-
-    Pass 1 - RetinaFace strict      (clear, near, front-facing)
-    Pass 2 - RetinaFace lenient     (glasses, hats, cropped edges)
-    Pass 3 - OpenCV fallback        (side profiles, poor lighting)
-    Pass 4 - CLAHE enhanced image   (outdoor / dim / far-away faces)
+    1-to-2-pass face detection to catch clear faces and occlusion quickly:
+      - Pass 1: RetinaFace strict (clear, near, front-facing)
+      - Pass 2: RetinaFace lenient (glasses, occluded, cropped) - only if Pass 1 fails
     """
     image_bgr = _to_bgr(image_np)
     h_img, w_img = image_np.shape[:2]
@@ -360,35 +397,16 @@ def get_all_face_data(image_np: np.ndarray) -> list:
     print(f"DEBUG [face-data] pass-1 (retinaface strict): {len(p1_objs)} obj(s)", flush=True)
 
     # ── Pass 2: RetinaFace lenient — catches glasses/occluded ─────────────
+    # Only run this expensive second pass if no faces were securely detected in pass 1.
     if not results:
         p2_objs = _represent_faces(image_bgr, DETECTOR_BACKEND, enforce=False)
         add_objs(p2_objs, min_coverage=0.003)
         print(f"DEBUG [face-data] pass-2 (retinaface lenient): {len(p2_objs)} obj(s)", flush=True)
 
-    # ── Pass 3: OpenCV Haar fallback — strong on profiles ─────────────────
-    if not results:
-        p3_objs = _represent_faces(image_bgr, FALLBACK_DETECTOR, enforce=False)
-        add_objs(p3_objs, min_coverage=0.003)
-        print(f"DEBUG [face-data] pass-3 (opencv fallback): {len(p3_objs)} obj(s)", flush=True)
-
-    # ── Pass 4: CLAHE + upscale — for outdoor/far-away/dim photos ─────────
-    # We ALWAYS run this pass to extract contrast-enhanced embeddings for all faces,
-    # as it drastically improves accuracy for ambiguous or low-res outdoor faces.
-    enhanced_bgr, scale_factor = _enhance_for_detection(image_bgr)
-    p4_objs = _represent_faces(enhanced_bgr, DETECTOR_BACKEND, enforce=False)
-    add_objs(p4_objs, min_coverage=0.001, is_enhanced=True, scale=scale_factor)
-    print(f"DEBUG [face-data] pass-4 (clahe+retinaface): {len(p4_objs)} obj(s)", flush=True)
-
-    if not results:
-        p4b_objs = _represent_faces(enhanced_bgr, FALLBACK_DETECTOR, enforce=False)
-        add_objs(p4b_objs, min_coverage=0.001, is_enhanced=True, scale=scale_factor)
-        print(f"DEBUG [face-data] pass-4b (clahe+opencv): {len(p4b_objs)} obj(s)", flush=True)
-
     # Remove any overlapping detections from multiple passes, merging their embeddings
     results = _deduplicate(results)
     print(f"DEBUG [face-data] final unique faces: {len(results)}", flush=True)
     return results
-
 
 # ─────────────────────── Face comparison ─────────────────────────────────────
 

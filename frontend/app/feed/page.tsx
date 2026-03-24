@@ -13,6 +13,9 @@ interface Post {
     uploader_id: number
     is_active: boolean
     uploader: { username: string; email: string }
+    like_count: number
+    comment_count: number
+    liked_by_user: boolean
 }
 
 interface Comment {
@@ -223,29 +226,14 @@ function PostCard({
     token: string | null
     onDelete: (id: number) => void
 }) {
-    const [liked, setLiked] = useState(false)
-    const [likeCount, setLikeCount] = useState(0)
-    const [commentCount, setCommentCount] = useState(0)
+    const [liked, setLiked] = useState(post.liked_by_user)
+    const [likeCount, setLikeCount] = useState(post.like_count)
+    const [commentCount, setCommentCount] = useState(post.comment_count)
     const [showComments, setShowComments] = useState(false)
     const [hearts, setHearts] = useState<FlyingHeart[]>([])
     const [liking, setLiking] = useState(false)
     const cardRef = useRef<HTMLDivElement>(null)
     const heartIdRef = useRef(0)
-
-    // Load initial like state
-    useEffect(() => {
-        if (!token) return
-        axios.get(`${API_BASE}/posts/${post.id}/likes`, {
-            headers: { Authorization: `Bearer ${token}` }
-        }).then(r => {
-            setLiked(r.data.liked)
-            setLikeCount(r.data.like_count)
-        }).catch(() => { })
-
-        axios.get(`${API_BASE}/posts/${post.id}/comments`)
-            .then(r => setCommentCount(r.data.length))
-            .catch(() => { })
-    }, [post.id, token])
 
     const spawnHearts = useCallback((e: React.MouseEvent) => {
         const rect = cardRef.current?.getBoundingClientRect()

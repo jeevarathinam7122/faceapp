@@ -558,7 +558,7 @@ function FaceCaptureStep({
         setError("")
     }
 
-    const capture = useCallback(() => {
+    const capture = async () => {
         if (!videoRef.current || !canvasRef.current) return
         const video = videoRef.current
         const canvas = canvasRef.current
@@ -570,9 +570,34 @@ function FaceCaptureStep({
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
         ctx.restore()
         const dataURL = canvas.toDataURL("image/jpeg", 0.9)
-        setCaptureState("captured")
-        setCaptures(prev => ({ ...prev, [stepKey]: dataURL }))
-    }, [stepKey])
+        
+        setCaptureState("capturing")
+        setCameraError("")
+
+        try {
+            const formData = new FormData()
+            formData.append("file", dataURLtoFile(dataURL, "capture.jpg"))
+            formData.append("angle", stepKey)
+            
+            const res = await axios.post(`${API_BASE}/auth/scan-face`, formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            })
+            const data = res.data
+            
+            if (!data.face_detected || data.already_registered) {
+                setCameraError(data.message)
+                setCaptureState("idle")
+            } else {
+                setCameraError("")
+                setCaptureState("captured")
+                setCaptures(prev => ({ ...prev, [stepKey]: dataURL }))
+            }
+        } catch (err: any) {
+            const msg = err.response?.data?.message || err.response?.data?.detail || "Scan failed. Please try again."
+            setCameraError(msg)
+            setCaptureState("idle")
+        }
+    }
 
     const retake = () => {
         setCaptureState("idle")
@@ -605,6 +630,7 @@ function FaceCaptureStep({
                 headers: { "Content-Type": "multipart/form-data" },
             })
             localStorage.setItem("token", response.data.access_token)
+            localStorage.setItem("username", credentials.username)
             stopCamera()
             onComplete()
         } catch (err: any) {
@@ -631,6 +657,7 @@ function FaceCaptureStep({
                 right_image_base64: embeddings.right_image_base64,
             })
             localStorage.setItem("token", response.data.access_token)
+            localStorage.setItem("username", credentials.username)
             onComplete()
         } catch (err: any) {
             setError(err.response?.data?.detail || "Registration failed. Please try again.")
@@ -691,6 +718,8 @@ function FaceCaptureStep({
                         ))}
                     </div>
 
+                    <VisualFaceExample type={stepKey} className="mb-1" />
+
                     {/* Instruction */}
                     <div className="text-center">
                         <p className="font-semibold text-sm">{STEP_LABELS[stepKey]}</p>
@@ -699,15 +728,27 @@ function FaceCaptureStep({
 
                     {/* Camera feed */}
                     <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/3]">
-                        {cameraError ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center text-sm text-red-400 p-4 text-center gap-2">
+                        {captureState === "capturing" ? (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-sm text-white p-4 text-center gap-3 bg-black/80 z-10">
+                                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                                <span>Scanning & Validating Face...</span>
+                            </div>
+                        ) : cameraError ? (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-sm text-red-400 p-4 text-center gap-3 bg-black/80 z-10">
                                 <span>{cameraError}</span>
                                 <button
                                     type="button"
-                                    onClick={() => switchMode("gallery")}
-                                    className="underline text-primary text-xs"
+                                    onClick={() => setCameraError("")}
+                                    className="px-4 py-2 bg-white/10 rounded-md hover:bg-white/20 text-white transition-colors"
                                 >
-                                    Switch to gallery upload →
+                                    Try Again
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => switchMode("gallery")}
+                                    className="underline text-primary/80 hover:text-primary text-xs mt-2"
+                                >
+                                    Switch to gallery upload instead
                                 </button>
                             </div>
                         ) : captureState === "captured" && captures[stepKey] ? (
@@ -737,7 +778,7 @@ function FaceCaptureStep({
                     {/* Buttons */}
                     <div className="flex gap-2">
                         {captureState !== "captured" ? (
-                            <Button className="flex-1" onClick={capture} disabled={!!cameraError}>
+                            <Button className="flex-1" onClick={capture} disabled={!!cameraError || captureState === "capturing"}>
                                 <Camera className="mr-2 h-4 w-4" /> Capture
                             </Button>
                         ) : (

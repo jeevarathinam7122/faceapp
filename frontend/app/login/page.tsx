@@ -29,6 +29,7 @@ export default function LoginPage() {
                 email: "placeholder@example.com",
             })
             localStorage.setItem("token", response.data.access_token)
+            localStorage.setItem("username", username)
             router.push("/feed")
         } catch {
             setError("Invalid username or password")

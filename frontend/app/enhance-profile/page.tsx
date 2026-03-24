@@ -299,7 +299,11 @@ export default function EnhanceProfilePage() {
 
                 {/* Camera View */}
                 {showCamera && (
-                    <div style={{ borderRadius: "16px", overflow: "hidden", marginBottom: "16px", background: "#000", position: "relative" }}>
+                    <>
+                        <div style={{ marginBottom: "16px" }}>
+                            <VisualFaceExample type={selectedAngle as FaceExampleType} />
+                        </div>
+                        <div style={{ borderRadius: "16px", overflow: "hidden", marginBottom: "16px", background: "#000", position: "relative" }}>
                         <video
                             ref={videoRef}
                             autoPlay playsInline muted
@@ -329,6 +333,7 @@ export default function EnhanceProfilePage() {
                             </button>
                         </div>
                     </div>
+                    </>
                 )}
 
                 {/* Add New Face section */}

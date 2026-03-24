@@ -46,7 +46,8 @@ export function Navbar() {
             ])
 
             // IDs the user has already seen (stored as JSON array of strings)
-            const seenRaw = localStorage.getItem("seenNotifIds")
+            const username = localStorage.getItem("username") || "unknown"
+            const seenRaw = localStorage.getItem(`seenNotifIds_${username}`)
             const seenIds: string[] = seenRaw ? JSON.parse(seenRaw) : []
             const seenSet = new Set(seenIds)
 
@@ -68,6 +69,7 @@ export function Navbar() {
 
     const handleLogout = () => {
         localStorage.removeItem("token")
+        localStorage.removeItem("username")
         window.location.href = "/login"
     }
 
